@@ -69,14 +69,14 @@ export default function FoodCard({ dish, onClick, onEdit, onDelete, showActions 
                 <input
                   key={star}
                   type="radio"
-                  className="mask mask-star-2"
-                  checked={Math.round(dish.rating) === star}
+                  className="mask mask-star-2 bg-amber-400 dark:bg-amber-500"
+                  checked={star === Math.ceil(dish.rating)}
                   readOnly
                 />
               ))}
             </div>
             <span className="text-sm opacity-70">
-              {dish.comments?.length || 0} 条评论
+              {dish.rating.toFixed(1)} · {dish.comments?.length || 0} 条评论
             </span>
           </div>
         </div>

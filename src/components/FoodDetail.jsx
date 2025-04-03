@@ -1,12 +1,12 @@
 import { useState } from "react";
 
-// 新增 ImageGallery 组件
+// 修改 ImageGallery 组件
 const ImageGallery = ({ images, onClose }) => {
   const [activeImage, setActiveImage] = useState(null);
 
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
         {images.map((image, index) => (
           <div
             key={index}
@@ -85,6 +85,7 @@ export default function FoodDetail({
 
     let imageDataArray = [];
     if (imageFiles.length > 0) {
+      // 确保所有图片都被正确处理
       imageDataArray = await Promise.all(
         imageFiles.map(
           (file) =>
@@ -98,13 +99,20 @@ export default function FoodDetail({
     }
 
     if (editingComment) {
+      // 编辑评论时的处理
+      const combinedImages = [
+        ...(editingComment.images || []), // 保留原有的图片
+        ...imageDataArray, // 添加新上传的图片
+      ];
+
       await onUpdateComment(dish.id, editingComment.id, {
         content: newComment.trim(),
         rating,
-        images: imageDataArray.length > 0 ? imageDataArray : editingComment.images,
+        images: combinedImages,
       });
       setEditingComment(null);
     } else {
+      // 新增评论时的处理
       await onAddComment({
         content: newComment.trim(),
         rating,
@@ -124,6 +132,8 @@ export default function FoodDetail({
     setNewComment(comment.content);
     setRating(comment.rating);
     setPreviewImages(comment.images || []);
+    // 重要：不要设置 imageFiles，因为我们不需要重新上传已有的图片
+    setImageFiles([]);
   };
 
   return (
@@ -275,7 +285,7 @@ export default function FoodDetail({
                   className="hidden"
                   onChange={handleImageChange}
                 />
-                {previewImages.length > 0 ? "添加更多图片" : "添加图片"}
+                添加图片
               </label>
 
               <div className="rating rating-md">
@@ -284,7 +294,7 @@ export default function FoodDetail({
                     key={star}
                     type="radio"
                     name="rating"
-                    className="mask mask-star-2 bg-yellow-400"
+                    className="mask mask-star-2 bg-amber-400 dark:bg-amber-500"
                     checked={rating === star}
                     onChange={() => setRating(star)}
                   />

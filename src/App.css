@@ -10,3 +10,9 @@ body {
   width: 100%;
   height: 100%;
 }
+
+/* 添加可滚动容器的样式 */
+.scrollable-container {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}

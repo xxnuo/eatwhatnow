@@ -269,7 +269,7 @@ export default function Menu() {
 
   return (
     <div className="h-screen flex flex-col">
-      {/* 搜索栏 */}
+      {/* 搜索栏固定在顶部 */}
       <div className="sticky top-0 z-10 bg-base-100 p-4 shadow-sm">
         <div className="join w-full">
           <input
@@ -296,9 +296,8 @@ export default function Menu() {
         </div>
       </div>
 
-      {/* 主要内容区域 - 添加滚动容器 */}
-      <div className="flex-1 overflow-y-auto">
-        {/* 分类横向滚动 */}
+      {/* 分类横向滚动固定在搜索栏下方 */}
+      <div className="sticky top-[72px] z-10 bg-base-100">
         <div className="p-4 overflow-x-auto">
           <div className="flex gap-2 min-w-max items-center">
             {/* 单独渲染"全部"按钮 */}
@@ -334,9 +333,11 @@ export default function Menu() {
             </button>
           </div>
         </div>
+      </div>
 
-        {/* 菜品网格 */}
-        <div className="p-4 grid grid-cols-1 gap-4 pb-24">
+      {/* 菜品列表可滚动 */}
+      <div className="scrollable-container flex-1">
+        <div className="p-4 grid grid-cols-1 gap-4 pb-32 md:pb-24">
           {/* 添加菜品按钮 */}
           <button
             onClick={() => setIsAddingDish(true)}
