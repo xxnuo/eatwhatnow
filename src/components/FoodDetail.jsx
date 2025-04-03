@@ -1,142 +1,307 @@
 import { useState } from 'react';
 
-export default function FoodDetail({ dish, onClose, onAddComment }) {
+// 新增 ImageGallery 组件
+const ImageGallery = ({ images, onClose }) => {
+  const [activeImage, setActiveImage] = useState(null);
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {images.map((image, index) => (
+          <div 
+            key={index} 
+            className="relative aspect-square cursor-pointer"
+            onClick={() => setActiveImage(image)}
+          >
+            <img
+              src={image}
+              alt={`图片 ${index + 1}`}
+              className="w-full h-full object-cover rounded-lg"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* 图片预览模态框 */}
+      {activeImage && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-5xl p-0 bg-transparent">
+            <img
+              src={activeImage}
+              alt="预览图片"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <label className="modal-backdrop" onClick={() => setActiveImage(null)}></label>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default function FoodDetail({ dish, onClose, onAddComment, onDeleteComment, onUpdateComment }) {
   const [newComment, setNewComment] = useState('');
   const [rating, setRating] = useState(5);
-  const [commentImage, setCommentImage] = useState(null);
+  const [editingComment, setEditingComment] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]); // 改为数组
+  const [previewImages, setPreviewImages] = useState([]); // 改为数组
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+    const files = Array.from(e.target.files);
+    const validFiles = files.filter(file => {
+      if (file.size > 50 * 1024 * 1024) {
+        alert('单个图片不能超过50MB');
+        return false;
+      }
+      return true;
+    });
+
+    setImageFiles(prev => [...prev, ...validFiles]);
+    
+    validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCommentImage(reader.result);
+        setPreviewImages(prev => [...prev, reader.result]);
       };
       reader.readAsDataURL(file);
-    }
+    });
   };
 
-  const handleSubmitComment = () => {
-    if (newComment.trim()) {
-      onAddComment({
+  const handleSubmitComment = async () => {
+    if (!newComment.trim()) return;
+    
+    let imageDataArray = [];
+    if (imageFiles.length > 0) {
+      imageDataArray = await Promise.all(
+        imageFiles.map(file => 
+          new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(file);
+          })
+        )
+      );
+    }
+
+    if (editingComment) {
+      await onUpdateComment(dish.id, editingComment.id, {
         content: newComment,
         rating,
-        image: commentImage
+        images: imageDataArray.length > 0 ? imageDataArray : editingComment.images
       });
-      setNewComment('');
-      setRating(5);
-      setCommentImage(null);
+      setEditingComment(null);
+    } else {
+      await onAddComment({
+        content: newComment,
+        rating,
+        images: imageDataArray
+      });
     }
+
+    // 重置表单
+    setNewComment('');
+    setRating(5);
+    setImageFiles([]);
+    setPreviewImages([]);
+  };
+
+  const handleEditComment = (comment) => {
+    setEditingComment(comment);
+    setNewComment(comment.content);
+    setRating(comment.rating);
+    setPreviewImages(comment.images || []);
   };
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box max-w-3xl">
-        <h3 className="font-bold text-lg flex items-center justify-between">
-          {dish.name}
-          <span className="badge badge-lg">
-            {dish.rating.toFixed(1)}⭐
-          </span>
-        </h3>
+      <div className="modal-box max-w-3xl bg-base-200">
+        {/* 头部区域 */}
+        <div className="bg-base-100 rounded-lg p-6 mb-6">
+          <h3 className="text-2xl font-bold mb-4 flex items-center justify-between">
+            {dish.name}
+            <div className="flex items-center gap-2">
+              <span className="text-3xl text-yellow-400">⭐</span>
+              <span className="text-2xl font-bold">{dish.rating.toFixed(1)}</span>
+            </div>
+          </h3>
 
-        {/* 菜品图片 */}
-        {dish.photo && (
-          <div className="mt-4">
-            <img
-              src={dish.photo}
-              alt={dish.name}
-              className="w-full h-48 object-cover rounded-lg"
-            />
+          {/* 菜品图片 */}
+          {dish.photo && (
+            <div className="mb-4">
+              <img
+                src={dish.photo}
+                alt={dish.name}
+                className="w-full h-64 object-cover rounded-lg shadow-lg"
+              />
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-base-content/70">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>{dish.location}</span>
+            <span className="mx-2">·</span>
+            <span className="text-sm">{dish.address}</span>
           </div>
-        )}
-
-        <p className="py-4">
-          <span className="font-bold">位置：</span>
-          {dish.location} ({dish.address})
-        </p>
+        </div>
 
         {/* 评论列表 */}
-        <div className="divider">评论</div>
-        <div className="space-y-4">
+        <div className="space-y-4 mb-6">
+          <h4 className="text-lg font-bold flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+            评论 ({dish.comments?.length || 0})
+          </h4>
+          
           {dish.comments?.map((comment) => (
-            <div key={comment.id} className="bg-base-200 p-4 rounded-lg">
-              <div className="flex justify-between items-center">
-                <div className="rating rating-sm">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <input
-                      key={star}
-                      type="radio"
-                      className="mask mask-star-2"
-                      checked={comment.rating === star}
-                      readOnly
-                    />
-                  ))}
+            <div key={comment.id} className="bg-base-100 p-6 rounded-lg shadow-sm">
+              <div className="flex justify-between items-start mb-3">
+                <div className="space-y-1">
+                  <div className="rating rating-sm">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <input
+                        key={star}
+                        type="radio"
+                        className="mask mask-star-2 bg-yellow-400"
+                        checked={comment.rating === star}
+                        readOnly
+                      />
+                    ))}
+                  </div>
+                  <p className="text-sm text-base-content/60">
+                    {new Date(comment.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
-                <span className="text-sm opacity-50">
-                  {new Date(comment.createdAt).toLocaleDateString()}
-                </span>
+                <div className="flex gap-2">
+                  <button 
+                    className="btn btn-ghost btn-xs"
+                    onClick={() => handleEditComment(comment)}
+                  >
+                    编辑
+                  </button>
+                  <button 
+                    className="btn btn-ghost btn-xs text-error"
+                    onClick={() => onDeleteComment(comment.id)}
+                  >
+                    删除
+                  </button>
+                </div>
               </div>
-              {comment.image && (
-                <div className="mt-2">
-                  <img
-                    src={comment.image}
-                    alt="评论图片"
-                    className="w-full max-h-32 object-cover rounded-lg"
-                  />
+              
+              <p className="text-base-content/80 mb-3">{comment.content}</p>
+              
+              {comment.images?.length > 0 && (
+                <div className="mt-3">
+                  <ImageGallery images={comment.images} />
                 </div>
               )}
-              <p className="mt-2">{comment.content}</p>
             </div>
           ))}
         </div>
 
-        {/* 添加评论 */}
-        <div className="mt-4">
+        {/* 添加评论表单 */}
+        <div className="bg-base-100 rounded-lg p-6">
           <textarea
-            className="textarea textarea-bordered w-full"
+            className="textarea textarea-bordered w-full min-h-[100px] mb-4"
             placeholder="写下你的评论..."
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
           />
-          <div className="flex items-center gap-4 mt-2">
+          
+          <div className="flex flex-wrap gap-4 items-center">
             <div className="rating rating-md">
               {[1, 2, 3, 4, 5].map((star) => (
                 <input
                   key={star}
                   type="radio"
                   name="rating"
-                  className="mask mask-star-2"
+                  className="mask mask-star-2 bg-yellow-400"
                   checked={rating === star}
                   onChange={() => setRating(star)}
                 />
               ))}
             </div>
-            <input
-              type="file"
-              accept="image/*"
-              className="file-input file-input-bordered file-input-sm w-full max-w-xs"
-              onChange={handleImageChange}
-            />
+            
+            <div className="flex-1 min-w-[200px]">
+              <label className="btn btn-outline w-full gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+                {previewImages.length > 0 ? '添加更多图片' : '添加图片'}
+              </label>
+              <p className="text-xs text-base-content/60 mt-1">
+                支持多图上传，单张图片大小不超过50MB
+              </p>
+            </div>
+            
             <button
-              className="btn btn-primary"
+              className="btn btn-primary min-w-[100px]"
               onClick={handleSubmitComment}
+              disabled={!newComment.trim()}
             >
-              发表评论
+              {editingComment ? '更新评论' : '发表评论'}
             </button>
+            
+            {editingComment && (
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setEditingComment(null);
+                  setNewComment('');
+                  setRating(5);
+                  setImageFiles([]);
+                  setPreviewImages([]);
+                }}
+              >
+                取消
+              </button>
+            )}
           </div>
-          {commentImage && (
-            <div className="mt-2">
-              <img
-                src={commentImage}
-                alt="预览图片"
-                className="w-32 h-32 object-cover rounded-lg"
-              />
+
+          {previewImages.length > 0 && (
+            <div className="mt-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {previewImages.map((preview, index) => (
+                  <div key={index} className="relative aspect-square">
+                    <img
+                      src={preview}
+                      alt={`预览图片 ${index + 1}`}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                    <button
+                      className="btn btn-circle btn-sm absolute -top-2 -right-2 bg-base-100"
+                      onClick={() => {
+                        setImageFiles(prev => prev.filter((_, i) => i !== index));
+                        setPreviewImages(prev => prev.filter((_, i) => i !== index));
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
 
         <div className="modal-action">
-          <button className="btn" onClick={onClose}>
+          <button 
+            className="btn btn-ghost gap-2" 
+            onClick={onClose}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
             关闭
           </button>
         </div>

@@ -60,7 +60,7 @@ export default function Settings() {
                   localStorage.clear();
                   await clearIndexedDB();
                   document.getElementById('clear-data-modal').close();
-                  alert('所有数据已清空，页面将刷新');
+                  // alert('所有数据已清空，页面将刷新');
                   window.location.reload();
                 } catch (error) {
                   console.error('清空数据时出错:', error);

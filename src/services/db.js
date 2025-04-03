@@ -221,8 +221,9 @@ export const db = {
       if (!dish) throw new Error('菜品不存在');
       
       const newComment = {
-        id: Date.now(), // 使用时间戳作为评论ID
+        id: Date.now(),
         ...comment,
+        images: comment.images || [],
         createdAt: new Date().toISOString()
       };
       
@@ -238,6 +239,51 @@ export const db = {
     getComments: async (dishId) => {
       const dish = await db.dishes.getById(dishId);
       return dish ? (dish.comments || []) : [];
+    },
+    deleteComment: async (dishId, commentId) => {
+      const dish = await db.dishes.getById(dishId);
+      if (!dish) throw new Error('菜品不存在');
+      
+      // 保存原有的其他属性
+      const updatedDish = {
+        ...dish,
+        comments: dish.comments.filter(comment => comment.id !== commentId)
+      };
+      
+      // 更新菜品评分
+      updatedDish.rating = updatedDish.comments.length > 0
+        ? updatedDish.comments.reduce((sum, c) => sum + c.rating, 0) / updatedDish.comments.length
+        : 0;
+      
+      // 更新数据库
+      await db.dishes.update(updatedDish);
+      
+      // 返回更新后的菜品
+      return updatedDish;
+    },
+    updateComment: async (dishId, commentId, updatedComment) => {
+      const dish = await db.dishes.getById(dishId);
+      if (!dish) throw new Error('菜品不存在');
+      
+      const commentIndex = dish.comments.findIndex(c => c.id === commentId);
+      if (commentIndex === -1) throw new Error('评论不存在');
+      
+      // 更新评论，保留原有的 id 和 createdAt
+      dish.comments[commentIndex] = {
+        ...dish.comments[commentIndex],
+        content: updatedComment.content,
+        rating: updatedComment.rating,
+        image: updatedComment.image
+      };
+      
+      // 更新菜品评分
+      dish.rating = dish.comments.reduce((sum, c) => sum + c.rating, 0) / dish.comments.length;
+      
+      // 更新数据库
+      await db.dishes.update(dish);
+      
+      // 返回更新后的菜品
+      return dish;
     }
   }
 }; 

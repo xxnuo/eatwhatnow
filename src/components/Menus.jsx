@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { db } from "../services/db";
 import { Link } from "react-router-dom";
-import FoodDetail from './FoodDetail';
+import FoodDetail from "./FoodDetail";
 
 export default function Menu() {
   const [categories, setCategories] = useState([]);
@@ -20,6 +20,10 @@ export default function Menu() {
   // 新增分类管理状态
   const [isManagingCategories, setIsManagingCategories] = useState(false);
 
+  // 新增图片处理状态
+  const [imageFiles, setImageFiles] = useState([]);
+  const [previewImages, setPreviewImages] = useState([]);
+
   // 加载分类
   useEffect(() => {
     const loadCategories = async () => {
@@ -37,9 +41,9 @@ export default function Menu() {
   useEffect(() => {
     const loadDishes = async () => {
       try {
-        const items = selectedCategory ? 
-          await db.dishes.getByCategory(selectedCategory.id) :
-          await db.dishes.getAll();
+        const items = selectedCategory
+          ? await db.dishes.getByCategory(selectedCategory.id)
+          : await db.dishes.getAll();
         setDishes(items);
       } catch (error) {
         console.error("加载菜品失败:", error);
@@ -52,17 +56,42 @@ export default function Menu() {
   const handleAddComment = async (comment) => {
     try {
       await db.dishes.addComment(selectedDish.id, comment);
-      
+
       // 重新加载菜品数据
       const updatedDish = await db.dishes.getById(selectedDish.id);
       setSelectedDish(updatedDish);
 
       // 更新菜品列表中的评分
-      setDishes(dishes.map((dish) => 
-        dish.id === updatedDish.id ? updatedDish : dish
-      ));
+      setDishes(
+        dishes.map((dish) => (dish.id === updatedDish.id ? updatedDish : dish))
+      );
     } catch (error) {
       console.error("添加评论失败:", error);
+    }
+  };
+
+  // 修改删除评论的处理函数
+  const handleDeleteComment = async (commentId) => {
+    try {
+      // 先获取当前菜品的副本
+      const currentDish = { ...selectedDish };
+
+      // 删除评论并获取更新后的菜品
+      const updatedDish = await db.dishes.deleteComment(
+        currentDish.id,
+        commentId
+      );
+
+      // 只更新当前菜品在列表中的数据
+      const updatedDishes = dishes.map((dish) =>
+        dish.id === updatedDish.id ? updatedDish : dish
+      );
+
+      // 更新状态
+      setDishes(updatedDishes);
+      setSelectedDish(updatedDish);
+    } catch (error) {
+      console.error("删除评论失败:", error);
     }
   };
 
@@ -94,32 +123,33 @@ export default function Menu() {
     try {
       // 1. 获取该分类下的所有菜品
       const allDishes = await db.dishes.getAll();
-      const dishesToUpdate = allDishes.filter(dish => dish.categoryId === id);
-      
+      const dishesToUpdate = allDishes.filter((dish) => dish.categoryId === id);
+
       // 2. 将这些菜品转移到未分类(id=0)
       for (const dish of dishesToUpdate) {
         await db.dishes.update({
           ...dish,
-          categoryId: 0
+          categoryId: 0,
         });
       }
-      
+
       // 3. 删除分类
       await db.categories.delete(id);
-      
+
       // 4. 重新加载分类列表
       const cats = await db.categories.getAll();
       setCategories(cats);
-      
+
       // 5. 如果当前选中的就是被删除的分类,切换到全部
       if (selectedCategory?.id === id) {
         setSelectedCategory(null);
       }
-      
+
       // 6. 重新加载菜品列表
-      const items = await db.dishes.getByCategory(selectedCategory?.id === id ? 0 : selectedCategory?.id);
+      const items = await db.dishes.getByCategory(
+        selectedCategory?.id === id ? 0 : selectedCategory?.id
+      );
       setDishes(items);
-      
     } catch (error) {
       console.error("删除分类失败:", error);
     }
@@ -127,7 +157,18 @@ export default function Menu() {
 
   const handleAddDish = async (dishData) => {
     try {
-      await db.dishes.add(dishData);
+      // 创建菜品数据
+      const newDish = {
+        name: dishData.name,
+        categoryId: dishData.categoryId,
+        location: dishData.location, 
+        address: dishData.address,
+        rating: 0,
+        comments: [],
+        createdAt: new Date().toISOString()
+      };
+
+      await db.dishes.add(newDish);
       const items = await db.dishes.getByCategory(selectedCategory?.id);
       setDishes(items);
       setIsAddingDish(false);
@@ -138,9 +179,26 @@ export default function Menu() {
 
   const handleEditDish = async (id, dishData) => {
     try {
-      await db.dishes.update(id, dishData);
-      const items = await db.dishes.getByCategory(selectedCategory?.id);
-      setDishes(items);
+      // 获取原有菜品数据
+      const originalDish = await db.dishes.getById(id);
+      
+      // 更新基本信息,保留原有评论和图片
+      const updatedDish = {
+        ...originalDish,
+        name: dishData.name,
+        categoryId: dishData.categoryId,
+        location: dishData.location,
+        address: dishData.address
+      };
+
+      await db.dishes.update(updatedDish);
+
+      // 更新列表中的菜品
+      const updatedDishes = dishes.map((dish) =>
+        dish.id === id ? updatedDish : dish
+      );
+      setDishes(updatedDishes);
+
       setIsEditingDish(false);
       setEditingDish(null);
     } catch (error) {
@@ -150,15 +208,59 @@ export default function Menu() {
 
   const handleDeleteDish = async (id) => {
     try {
+      // 先删除菜品
       await db.dishes.delete(id);
-      const items = await db.dishes.getByCategory(selectedCategory?.id);
-      setDishes(items);
+
+      // 如果删除的是当前选中的菜品，清除选中状态
       if (selectedDish?.id === id) {
         setSelectedDish(null);
       }
+
+      // 直接从当前列表中移除被删除的菜品
+      const updatedDishes = dishes.filter((dish) => dish.id !== id);
+      setDishes(updatedDishes);
     } catch (error) {
       console.error("删除菜品失败:", error);
     }
+  };
+
+  // 添加更新评论的处理函数
+  const handleUpdateComment = async (dishId, commentId, updatedComment) => {
+    try {
+      const updatedDish = await db.dishes.updateComment(
+        dishId,
+        commentId,
+        updatedComment
+      );
+      setSelectedDish(updatedDish);
+      setDishes(
+        dishes.map((dish) => (dish.id === updatedDish.id ? updatedDish : dish))
+      );
+    } catch (error) {
+      console.error("更新评论失败:", error);
+    }
+  };
+
+  // 修改图片处理函数
+  const handleDishImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    const validFiles = files.filter((file) => {
+      if (file.size > 50 * 1024 * 1024) {
+        alert("单个图片不能超过50MB");
+        return false;
+      }
+      return true;
+    });
+
+    setImageFiles((prev) => [...prev, ...validFiles]);
+
+    validFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImages((prev) => [...prev, reader.result]);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   return (
@@ -210,15 +312,17 @@ export default function Menu() {
                 key={category.id}
                 onClick={() => setSelectedCategory(category)}
                 className={`btn btn-sm ${
-                  selectedCategory?.id === category.id ? "btn-primary" : "btn-ghost"
+                  selectedCategory?.id === category.id
+                    ? "btn-primary"
+                    : "btn-ghost"
                 }`}
               >
                 {category.name}
               </button>
             ))}
-            
+
             {/* 分类管理按钮 */}
-            <button 
+            <button
               onClick={() => setIsManagingCategories(true)}
               className="btn btn-sm btn-ghost"
             >
@@ -257,14 +361,20 @@ export default function Menu() {
           {dishes.map((dish) => (
             <div
               key={dish.id}
-              className="card card-compact bg-base-100 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
-              onClick={() => setSelectedDish(dish)}
+              className="card card-compact bg-base-100 shadow-lg hover:shadow-xl transition-shadow"
             >
-              <div className="flex">
-                {dish.photo && (
+              <div
+                className="flex relative"
+                onClick={(e) => {
+                  if (!e.target.closest(".dish-menu")) {
+                    setSelectedDish(dish);
+                  }
+                }}
+              >
+                {dish.comments?.[0]?.images?.[0] && (
                   <figure className="w-1/3">
                     <img
-                      src={dish.photo}
+                      src={dish.comments[0].images[0]}
                       alt={dish.name}
                       className="h-full w-full object-cover"
                     />
@@ -273,7 +383,7 @@ export default function Menu() {
                 <div className="card-body flex-1">
                   <div className="flex justify-between items-start">
                     <h3 className="card-title text-lg">{dish.name}</h3>
-                    <div className="dropdown dropdown-end">
+                    <div className="dish-menu dropdown dropdown-end">
                       <button
                         tabIndex={0}
                         className="btn btn-sm btn-ghost btn-circle"
@@ -295,11 +405,12 @@ export default function Menu() {
                       </button>
                       <ul
                         tabIndex={0}
-                        className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-32"
+                        className="dish-menu dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-32"
                       >
                         <li>
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setEditingDish(dish);
                               setIsEditingDish(true);
                             }}
@@ -309,7 +420,10 @@ export default function Menu() {
                         </li>
                         <li>
                           <button
-                            onClick={() => handleDeleteDish(dish.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDish(dish.id);
+                            }}
                             className="text-error"
                           >
                             删除
@@ -347,14 +461,25 @@ export default function Menu() {
         <div className="modal modal-open">
           <div className="modal-box w-11/12 max-w-2xl">
             <h3 className="font-bold text-lg mb-4">分类管理</h3>
-            
+
             {/* 添加分类按钮 */}
-            <button 
+            <button
               onClick={() => setIsAddingCategory(true)}
               className="btn btn-sm btn-ghost text-primary mb-4"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 mr-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               添加新分类
             </button>
@@ -369,40 +494,64 @@ export default function Menu() {
                   </tr>
                 </thead>
                 <tbody>
-                  {categories.filter(cat => cat.id !== 0).map((category) => (
-                    <tr key={category.id}>
-                      <td>{category.name}</td>
-                      <td>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingCategory(category);
-                              setIsEditingCategory(true);
-                            }}
-                            className="btn btn-xs btn-ghost"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCategory(category.id)}
-                            className="btn btn-xs btn-ghost text-error"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {categories
+                    .filter((cat) => cat.id !== 0)
+                    .map((category) => (
+                      <tr key={category.id}>
+                        <td>{category.name}</td>
+                        <td>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => {
+                                setEditingCategory(category);
+                                setIsEditingCategory(true);
+                              }}
+                              className="btn btn-xs btn-ghost"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-3 w-3"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCategory(category.id)}
+                              className="btn btn-xs btn-ghost text-error"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-3 w-3"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
 
             <div className="modal-action">
-              <button 
+              <button
                 className="btn"
                 onClick={() => setIsManagingCategories(false)}
               >
@@ -410,7 +559,10 @@ export default function Menu() {
               </button>
             </div>
           </div>
-          <label className="modal-backdrop" onClick={() => setIsManagingCategories(false)}></label>
+          <label
+            className="modal-backdrop"
+            onClick={() => setIsManagingCategories(false)}
+          ></label>
         </div>
       )}
 
@@ -550,20 +702,11 @@ export default function Menu() {
                 id="newDishAddress"
                 className="input input-bordered w-full"
               />
-
-              <label className="label">
-                <span className="label-text">图片链接（可选）</span>
-              </label>
-              <input
-                type="text"
-                id="newDishPhoto"
-                className="input input-bordered w-full"
-              />
             </div>
             <div className="modal-action">
               <button
                 className="btn btn-primary"
-                onClick={() => {
+                onClick={async () => {
                   const name = document.getElementById("newDishName").value;
                   const categoryId = parseInt(
                     document.getElementById("newDishCategory").value
@@ -572,24 +715,23 @@ export default function Menu() {
                     document.getElementById("newDishLocation").value;
                   const address =
                     document.getElementById("newDishAddress").value;
-                  const photo = document.getElementById("newDishPhoto").value;
 
                   if (name && location && address) {
                     handleAddDish({
                       name,
                       categoryId,
                       location,
-                      address,
-                      photo: photo || null,
-                      rating: 0,
-                      comments: [],
+                      address
                     });
                   }
                 }}
               >
                 确定
               </button>
-              <button className="btn" onClick={() => setIsAddingDish(false)}>
+              <button
+                className="btn"
+                onClick={() => setIsAddingDish(false)}
+              >
                 取消
               </button>
             </div>
@@ -653,21 +795,11 @@ export default function Menu() {
                 className="input input-bordered w-full"
                 defaultValue={editingDish.address}
               />
-
-              <label className="label">
-                <span className="label-text">图片链接（可选）</span>
-              </label>
-              <input
-                type="text"
-                id="editDishPhoto"
-                className="input input-bordered w-full"
-                defaultValue={editingDish.photo || ""}
-              />
             </div>
             <div className="modal-action">
               <button
                 className="btn btn-primary"
-                onClick={() => {
+                onClick={async () => {
                   const name = document.getElementById("editDishName").value;
                   const categoryId = parseInt(
                     document.getElementById("editDishCategory").value
@@ -676,17 +808,13 @@ export default function Menu() {
                     document.getElementById("editDishLocation").value;
                   const address =
                     document.getElementById("editDishAddress").value;
-                  const photo = document.getElementById("editDishPhoto").value;
 
                   if (name && location && address) {
                     handleEditDish(editingDish.id, {
                       name,
                       categoryId,
                       location,
-                      address,
-                      photo: photo || null,
-                      rating: editingDish.rating,
-                      comments: editingDish.comments,
+                      address
                     });
                   }
                 }}
@@ -720,6 +848,8 @@ export default function Menu() {
           dish={selectedDish}
           onClose={() => setSelectedDish(null)}
           onAddComment={handleAddComment}
+          onDeleteComment={handleDeleteComment}
+          onUpdateComment={handleUpdateComment}
         />
       )}
     </div>
