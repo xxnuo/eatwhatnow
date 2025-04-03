@@ -138,7 +138,26 @@ export default function FoodDetail({
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box max-w-3xl bg-base-200">
+      <div className="modal-box max-w-3xl bg-base-200 relative">
+        <button
+          className="btn btn-sm btn-circle btn-ghost absolute right-0 top-0 z-10"
+          onClick={onClose}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
         {/* 头部区域 */}
         <div className="bg-base-100 rounded-lg p-6 mb-6">
           <h3 className="text-2xl font-bold mb-4 flex items-center justify-between">
