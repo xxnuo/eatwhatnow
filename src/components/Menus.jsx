@@ -341,12 +341,12 @@ export default function Menu() {
           {/* 添加菜品按钮 */}
           <button
             onClick={() => setIsAddingDish(true)}
-            className="card card-compact bg-base-100 shadow-lg hover:shadow-xl transition-shadow cursor-pointer border-2 border-dashed border-base-300 p-4 flex items-center justify-center"
+            className="card card-compact bg-base-100 shadow-lg hover:shadow-xl transition-shadow cursor-pointer border-2 border-dashed border-base-300 p-2 flex items-center justify-center"
           >
             <div className="text-center">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-8 w-8 mx-auto mb-2"
+                className="h-6 w-6 mx-auto mb-1"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -358,7 +358,7 @@ export default function Menu() {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              <span>添加新菜品</span>
+              <span className="text-sm">添加新菜品</span>
             </div>
           </button>
 
