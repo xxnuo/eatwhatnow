@@ -36,7 +36,7 @@ export default function Settings() {
       const categories = await db.categories.getAll();
       const dishes = await db.dishes.getAll();
 
-      console.log("导出前的菜品数据:", dishes); // 添加日志
+      // console.log("导出前的菜品数据:", dishes); // 添加日志
 
       // 创建导出对象
       const exportData = {
@@ -46,7 +46,7 @@ export default function Settings() {
         version: "1.0.0",
       };
 
-      console.log("准备导出的数据:", exportData); // 添加日志
+      // console.log("准备导出的数据:", exportData); // 添加日志
 
       // 转换为 JSON 字符串
       const jsonString = JSON.stringify(exportData, null, 2);
@@ -85,7 +85,7 @@ export default function Settings() {
       reader.onload = async (e) => {
         try {
           const data = JSON.parse(e.target.result);
-          console.log("解析的导入数据:", data); // 添加日志
+          // console.log("解析的导入数据:", data); // 添加日志
 
           // 验证数据格式
           if (!data.categories || !data.dishes) {
@@ -94,7 +94,7 @@ export default function Settings() {
 
           // 检查菜品数据中的评论
           data.dishes.forEach((dish) => {
-            console.log(`菜品 ${dish.name} 的评论:`, dish.comments);
+            // console.log(`菜品 ${dish.name} 的评论:`, dish.comments);
           });
 
           // 显示确认对话框
@@ -128,7 +128,7 @@ export default function Settings() {
         throw new Error("数据格式无效：缺少必要的数据结构");
       }
 
-      console.log("开始导入数据...");
+      // console.log("开始导入数据...");
 
       // 1. 先清空数据库
       await clearDatabase();
@@ -136,7 +136,7 @@ export default function Settings() {
       // 2. 导入新数据
       await importData(data);
 
-      console.log("数据导入完成");
+      // console.log("数据导入完成");
       document.getElementById("import-data-modal").close();
       window.location.reload();
     } catch (error) {
@@ -147,7 +147,7 @@ export default function Settings() {
 
   // 清空数据库函数
   const clearDatabase = async () => {
-    console.log("清空现有数据...");
+    // console.log("清空现有数据...");
 
     // 获取所有现有数据
     const existingCategories = await db.categories.getAll();
@@ -170,10 +170,11 @@ export default function Settings() {
   // 导入数据函数
   const importData = async (data) => {
     // 导入分类数据
-    console.log(`导入 ${data.categories.length} 个分类...`);
+    // console.log(`导入 ${data.categories.length} 个分类...`);
     const categoryMap = new Map();
     for (const category of data.categories) {
-      if (category.id !== 0) { // 跳过"未分类"
+      if (category.id !== 0) {
+        // 跳过"未分类"
         const id = await db.categories.add({
           name: category.name,
           createdAt: category.createdAt || new Date().toISOString(),
@@ -183,10 +184,10 @@ export default function Settings() {
     }
 
     // 导入菜品数据
-    console.log(`导入 ${data.dishes.length} 个菜品...`);
+    // console.log(`导入 ${data.dishes.length} 个菜品...`);
     for (const dish of data.dishes) {
-      console.log("正在导入菜品:", dish.name);
-      console.log("原始评论数据:", JSON.stringify(dish.comments, null, 2));
+      // console.log("正在导入菜品:", dish.name);
+      // console.log("原始评论数据:", JSON.stringify(dish.comments, null, 2));
 
       const dishData = {
         name: dish.name,
@@ -198,11 +199,14 @@ export default function Settings() {
         createdAt: dish.createdAt || new Date().toISOString(),
       };
 
-      console.log("准备存入数据库的菜品数据:", JSON.stringify(dishData, null, 2));
-      
+      // console.log(
+      //   "准备存入数据库的菜品数据:",
+      //   JSON.stringify(dishData, null, 2)
+      // );
+
       try {
         await db.dishes.update(dishData); // 使用 update 而不是 add
-        console.log(`菜品 ${dish.name} 导入成功`);
+        // console.log(`菜品 ${dish.name} 导入成功`);
       } catch (error) {
         console.error(`导入菜品 ${dish.name} 失败:`, error);
       }
