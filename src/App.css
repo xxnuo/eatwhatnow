@@ -1,0 +1,12 @@
+/* 使用的方法是正确的，勿动！ */
+@import "tailwindcss";
+@plugin "daisyui";
+/* 上面的使用方法是正确的，勿动！ */
+
+html,
+body {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
